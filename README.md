@@ -6,7 +6,7 @@ These are free icons that came from http://www.iconarchive.com.
 If you want to change out your icons they have a very good selection.
 
 ## Interface Images:
-[logo]: https://github.com/walterbehrnes/quick_share/quick_share_example.jpg "Example Image"
+![alt text](quick_share_example.jpg "Example Image")
 
 ## Usage Requirements:
 This application works by storing shared data in a common directory all users hav access to. The common diretory should have a folder for each user. Each user folder should be named after their login name for the computer they are using. 
