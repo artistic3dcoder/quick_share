@@ -1,6 +1,6 @@
 """
-quick_Share.py (c) 2013 Walter Behrnes
-Verision 1.0
+quick_Share.py (c) 2018 Walter Behrnes
+Verision 1.1
 Author: Walter Behrnes
 Contact: walter.behrnes@gmail.com
 
@@ -9,21 +9,12 @@ Description:
        data between another users machine.
 
 Documentation:
-       These variables should be edited in the config.py file:
-           SHARE_BASE:
-                This is the base directory where shared files will be stored.
-                The directories in the folder must be the userLogin name.
-                !!! THIS FOLDER MUST EXIST !!!
-                !!! THIS FOLDER MUST HAVE SUBDIRECTORIES OF USERS !!!
-           Base_PATH:
-                This is the base directory where icons will live
-                !!! COPY THE SUPPLIED ICONS HERE !!!
-           EXLUDE:
-                List of folder names to not put into autofill in option for
-                user name adding.
+       In order for quick share to work correctly you will need to  edit the config.QuickShareConfig class to suit your
+       configuration. The QuickShareConfig class sets up pathing information used by the QuickShare class.
+       
 To-do's:
-   Add notes per cpio.
-   Add ability to remove cpio cache
+   Add notes per share item.
+   Add ability to remove share cache
 """
 
 # NATIVE
@@ -34,7 +25,7 @@ import shutil
 import time
 
 # INTERNAL
-from config import Config
+from config import QuickShareConfig
 from data_types.constants.constant_characters import INVALID_CHARACTERS
 
 # EXTERNAL
@@ -62,35 +53,6 @@ from hutil.Qt.QtWidgets import QSizePolicy
 from hutil.Qt.QtWidgets import QCompleter
 from hutil.Qt.QtWidgets import QScrollArea
 
-# IF YOUR SHARE FOLDER HAS FOLDERS YOU WANT TO EXCLUDE
-# EDIT THIS VALUE IN THE config.py FILE
-EXCLUDE = Config.exclude
-# THIS IS THE ROOT FOLDER WHERE YOUR SHARE FOLDERS EXIST.
-# EDIT THIS VALUE IN THE config.py FILE
-SHARE_BASE = Config.shared_temp
-# BASE PATH WHERE YOUR ICONS ARE STORED
-# EDIT THIS VALUE IN THE config.py FILE
-BASE_PATH = Config.icons
-
-# DO NOT EDIT
-ICON_PLUS = "Copy_Color2_16x16.png"
-ICON_MINUS = "Add_Blue_16x16.png"
-ICON_REMOVE = "Delete_Blue_16x16.png"
-ICON_NEXT = "Right_Clear_Orange_128x128.png"
-ICON_MAIL = "Send_24x24.png"
-ICON_PERSON = "PersonFolder_White_16x16.png"
-ICON_COLLECTION = "CollectionFolder_Gray_16x16.png"
-ICON_TOOL = "Tool_Gray_16x16x.png"
-ICON_GET = "Get_GreenArrow_32x32.png"
-ICON_CHECK = "check_box_down_transparent_16x16.png"
-ICON_UNCHECK = "check_box_up_transparent_16x16.png"
-ICON_TRASH = "trashcan_orange_22x22.png"
-ICON_BULB = "Info_Bulb_24x24.png"
-
-TREEVIEW_branch_closed = "stylesheet-branch-closed.png"
-TREEVIEW_branch_open = "stylesheet-branch-open.png"
-
-SHARE_TYPE = ".cpio"
 
 
 COL_0 = QColor(0, 0, 0)
@@ -100,7 +62,7 @@ COL_240 = QColor(240, 240, 240)
 COL_MIX = QColor(153, 204, 255)
 
 
-class QShare(QWidget):
+class QuickShare(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self)
         self.setProperty("houdiniStyle", True)
@@ -116,21 +78,21 @@ class QShare(QWidget):
         self.palette_black.setColor(QPalette.Foreground, QtCore.Qt.black)
 
         # CLASS VARS
-        self.sendList = []              # USERS WE WILL SEND TO
-        self.cpioList = []              # ITEMS WE WILL SEND
-        self.received_cpio_list = []    # ITEMS SENT TO USER
-        self.baseFolders = []           # BASE FOLDERS OF RECEIVED DATA
-        self.copyList = []              # ITEMS WE WILL COPY
-        self.checkedList = []           # ITEMS THAT ARE CURRENTLY CHECKED
+        self.send_list = []              # USERS WE WILL SEND TO
+        self.share_list = []              # ITEMS WE WILL SEND
+        self.received_share_list = []    # ITEMS SENT TO USER
+        self.base_folders = []           # BASE FOLDERS OF RECEIVED DATA
+        self.copy_list = []              # ITEMS WE WILL COPY
+        self.checked_list = []           # ITEMS THAT ARE CURRENTLY CHECKED
         self.dirs = []
 
         # GET TEMP DIR AND USER NAME
         if 'linux' in sys.platform:
-            self.cpioSender = os.environ.get("USER")
-            self.cpio_temp_dir = "/tmp"
+            self.share_sender = os.environ.get("USER")
+            self.share_temp_dir = "/tmp"
         else:
-            self.cpioSender = os.environ.get("USERNAME")
-            self.cpio_temp_dir = os.environ.get("TMP")
+            self.share_sender = os.environ.get("USERNAME")
+            self.share_temp_dir = os.environ.get("TMP")
 
         self.tab_widget = QTabWidget()
         self.tab1 = QWidget()
@@ -140,14 +102,14 @@ class QShare(QWidget):
 
         self.tree = QTreeWidget()
         self.hbox2_controls_frame = QFrame()
-        self.get_cpio = QPushButton("", self)
+        self.get_share = QPushButton("", self)
         self.scrollArea_Frame = QFrame()
         self.scrollArea_Users = QScrollArea()
         self.userBox = QVBoxLayout()
         self.hbox_controls_frame = QFrame()
         self.packet_note = QLineEdit("PACKET NOTES", self)
         self.name_edit = QLineEdit("IDENTIFYING NAME", self)
-        self.send_cpio = QPushButton("", self)
+        self.send_share = QPushButton("", self)
 
         # layout manager page 1
         self.vbox = QVBoxLayout()
@@ -159,7 +121,7 @@ class QShare(QWidget):
         self.tab1_vbox = QVBoxLayout(self.tab1)
 
         # POPULATE SEND TAB page 1
-        self.make_cpio_table()
+        self.make_share_table()
         self.get_people()
         self.make_people_table()
         self.make_send_button()
@@ -184,8 +146,8 @@ class QShare(QWidget):
         text = self.sender().selfItem.text()
 
         if text != "":
-            if text not in self.sendList:
-                self.sendList.append(text)
+            if text not in self.send_list:
+                self.send_list.append(text)
                 if text in self.dirs:
                     # FRAME TO HOLD CONTROLS HBOX
                     hbox_controls_frame = QFrame()
@@ -197,7 +159,7 @@ class QShare(QWidget):
                     user_update = QPushButton("", self)
                     user_update.setFlat(True)
                     user_update.setStyleSheet("QPushButton { border:none};")
-                    icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_REMOVE)))
+                    icon = QIcon(QPixmap(QuickShareConfig.icon_remove))
                     user_update.setIcon(icon)
                     user_update.setIconSize(QtCore.QSize(16, 16))
                     user_update.pressState = 0
@@ -229,7 +191,7 @@ class QShare(QWidget):
             else:
                 self.sender().setText("")
 
-    def add_cpio_data(self):
+    def add_share_data(self):
         """
         THIS SETS THE STYLE SHEET ON THE QTGUI INSTANCE TO VISUALLY DISPLAY
         IF WE WANT TO SEND AN ITEM, IT ALSO ADDS OR REMOVES THE ITEM FROM THE SEND LIST
@@ -240,37 +202,38 @@ class QShare(QWidget):
             self.sender().info.setHidden(False)
             self.sender().line.setHidden(False)
 
-            icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_PLUS)))
+            icon = QIcon(QPixmap(QuickShareConfig.icon_plus))
             self.sender().selfItem.setIcon(icon)
             self.sender().selfItem.setStyleSheet("QPushButton { border:none};")
             self.sender().selfItem.pressState = 1
             # ADD ITEM TO SEND LIST
-            if self.sender().itemToSend not in self.cpioList:
-                self.cpioList.append(self.sender())
-            if len(self.cpioList) == 1:
-                self.send_cpio.setDisabled(False)
+            if self.sender().itemToSend not in self.share_list:
+                self.share_list.append(self.sender())
+            if len(self.share_list) == 1:
+                self.send_share.setDisabled(False)
         else:
             self.sender().info.setHidden(True)
             self.sender().line.setHidden(True)
 
-            icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_MINUS)))
+            icon = QIcon(QPixmap(QuickShareConfig.icon_minus))
             self.sender().selfItem.setIcon(icon)
             self.sender().selfItem.setStyleSheet("QPushButton { border:none};")
             self.sender().selfItem.pressState = 0
             # REMOVE ITEM FROM SEND LIST
-            if self.sender().itemToSend in self.cpioList:
-                self.cpioList.remove(self.sender())
-            if len(self.cpioList) == 0:
-                self.send_cpio.setDisabled(True)
+            if self.sender().itemToSend in self.share_list:
+                self.share_list.remove(self.sender())
+            if len(self.share_list) == 0:
+                self.send_share.setDisabled(True)
 
     def get_packet_data(self):
         """ 
-        HANDLE PULLING CPIO DATA FROM PEOPLE FOLDER AND PLACING IN /TMP FOLDER 
+        HANDLE PULLING SHARE DATA FROM PEOPLE FOLDER AND PLACING IN /TMP FOLDER
         """
-        for curItem in self.copyList[0]:
-            exp = re.compile('[a-zA-Z_]*.cpio$')
+        for curItem in self.copy_list[0]:
+            _str = '[a-zA-Z_]*{0}$'.format(QuickShareConfig.share_type)
+            exp = re.compile(_str)
             m = re.search(exp, curItem)
-            dest = "{1}{0}{2}".format(os.sep, self.cpio_temp_dir, m.group())
+            dest = "{1}{0}{2}".format(os.sep, self.share_temp_dir, m.group())
             shutil.copyfile(curItem, dest)
         message = "Copy Data ready!\n\nCTRL + V in the appropriate network to past your data."
         QMessageBox.information(None, "DATA FETCHED", message, QMessageBox.Ok)
@@ -280,37 +243,37 @@ class QShare(QWidget):
         GET A LIST AVAILABLE PACKETS THAT USER CAN PULL 
         """
 
-        # GET CPIO FILES
-        root_dir = os.path.join(SHARE_BASE, self.cpioSender, "houdiniCpioData")
+        # GET SHARE FILES
+        root_dir = os.path.join(QuickShareConfig.shared_temp, self.share_sender, "quickshare_data")
         if os.path.isdir(root_dir):
             for item in os.listdir(root_dir):
                 cur_path = os.path.join(root_dir, item)
                 if os.path.isdir(cur_path):
-                    self.baseFolders.append(item)
-                    for cpioRecieveFolder in os.listdir(cur_path):
-                        current_item = os.path.join(cur_path, cpioRecieveFolder)
+                    self.base_folders.append(item)
+                    for share_recieve_folder in os.listdir(cur_path):
+                        current_item = os.path.join(cur_path, share_recieve_folder)
                         if os.path.isdir(current_item):
-                            data = {'topLevel': item, 'files': [], 'path': current_item, 'folder': cpioRecieveFolder}
-                            cur_item = os.path.join(cur_path, cpioRecieveFolder)
+                            data = {'topLevel': item, 'files': [], 'path': current_item, 'folder': share_recieve_folder}
+                            cur_item = os.path.join(cur_path, share_recieve_folder)
                             if os.path.isdir(cur_item):
-                                for cpioFile in os.listdir(cur_item):
-                                    if os.path.isfile(os.path.join(cur_item, cpioFile)):
-                                        if SHARE_TYPE in cpioFile:
-                                            data['files'].append(cpioFile)
-                            self.received_cpio_list.append(data)
+                                for share_file in os.listdir(cur_item):
+                                    if os.path.isfile(os.path.join(cur_item, share_file)):
+                                        if QuickShareConfig.share_type in share_file:
+                                            data['files'].append(share_file)
+                            self.received_share_list.append(data)
 
     def get_people(self):
         """
         GET A LIST OF /PEOPLE/, ADD TO WINDOW SO ARTIST CAN CHOOSE WHAT TO SEND
         """
 
-        people_dir_content = os.listdir(SHARE_BASE)
+        people_dir_content = os.listdir(QuickShareConfig.shared_temp)
         self.dirs = []
         for i, item in enumerate(people_dir_content):
-            path = os.path.join(SHARE_BASE, item)
+            path = os.path.join(QuickShareConfig.shared_temp, item)
             if os.path.isdir(path):
                 pass_check = True
-                for text in EXCLUDE:
+                for text in QuickShareConfig.exclude:
                     if text in item:
                         pass_check = False
                 if pass_check:
@@ -341,7 +304,8 @@ class QShare(QWidget):
                 person = str(clicked_item.text(0))
             # READ IF CLICKED COLUMN 2
             if self.tree.currentColumn() == 2:
-                user_folder = "{1}{0}{2}{0}houdiniCpioData".format(os.sep, SHARE_BASE, self.cpioSender)
+                user_folder = "{1}{0}{2}{0}quickshare_data".format(os.sep, QuickShareConfig.shared_temp,
+                                                                   self.share_sender)
                 if not clicked_item.isItem and clicked_item.isSubFolder:
                     if clicked_item.isSubFolder:
                         path = "{1}{0}{2}{0}{3}".format(os.sep, user_folder, person, folder)
@@ -352,7 +316,8 @@ class QShare(QWidget):
             if self.tree.currentColumn() == 1:
                 if not clicked_item.isItem:
                     path = None
-                    user_folder = "{1}{0}{2}{0}houdiniCpioData".format(os.sep, SHARE_BASE, self.cpioSender)
+                    user_folder = "{1}{0}{2}{0}quickshare_data".format(os.sep, QuickShareConfig.shared_temp,
+                                                                       self.share_sender)
                     if not clicked_item.isItem and not clicked_item.isSubFolder:
                         path = "{1}{0}{2}".format(os.sep, user_folder, person)
                     if clicked_item.isSubFolder:
@@ -373,9 +338,9 @@ class QShare(QWidget):
                 if self.tree.currentItem().isSubFolder:
 
                     if is_checked:
-                        self.copyList = []  # CLEAR COPY LIST
+                        self.copy_list = []  # CLEAR COPY LIST
                         # UNCHECK EVERYTHING ELSE SINCE IT IS A WHOLE PACKET WE ARE CHOOSING
-                        for item in self.checkedList:
+                        for item in self.checked_list:
                             item.userCheckState = 0
                             if item.isSubFolder:
                                 brush = QBrush(QColor(230, 230, 230))
@@ -385,48 +350,48 @@ class QShare(QWidget):
                                 item.setBackground(0, brush)
 
                         # CLEAR CHECKED LIST
-                        self.checkedList = []
-                        self.checkedList.append(self.tree.currentItem())
+                        self.checked_list = []
+                        self.checked_list.append(self.tree.currentItem())
                         for i in range(0, self.tree.currentItem().childCount()):
                             self.tree.currentItem().child(i).userCheckState = 0
                             brush = QBrush(QColor(153, 204, 255))
                             self.tree.currentItem().child(i).setBackground(0, brush)
-                            self.checkedList.append(self.tree.currentItem().child(i))
+                            self.checked_list.append(self.tree.currentItem().child(i))
 
                         # ADD DATA TO COPY INTO COPY LIST
-                        if self.tree.currentItem().childrenItems not in self.copyList:
-                            self.copyList.append(self.tree.currentItem().childrenItems)
+                        if self.tree.currentItem().childrenItems not in self.copy_list:
+                            self.copy_list.append(self.tree.currentItem().childrenItems)
                     else:
-                        if self.tree.currentItem() in self.checkedList:
-                            self.checkedList.remove(self.tree.currentItem())
+                        if self.tree.currentItem() in self.checked_list:
+                            self.checked_list.remove(self.tree.currentItem())
                         for i in range(0, self.tree.currentItem().childCount()):
                             self.tree.currentItem().userCheckState = 0
                             self.tree.currentItem().child(i).userCheckState = 0
-                            if self.tree.currentItem().child(i) in self.checkedList:
-                                self.checkedList.remove(self.tree.currentItem().child(i))
+                            if self.tree.currentItem().child(i) in self.checked_list:
+                                self.checked_list.remove(self.tree.currentItem().child(i))
 
                         # REMOVE DATA FROM COPY LIST
-                        if self.tree.currentItem().childrenItems in self.copyList:
-                            self.copyList.remove(self.tree.currentItem().childrenItems)
+                        if self.tree.currentItem().childrenItems in self.copy_list:
+                            self.copy_list.remove(self.tree.currentItem().childrenItems)
 
                 if self.tree.currentItem().isItem:
                     temp_array = [self.tree.currentItem().item]
                     if is_checked:
-                        if temp_array not in self.copyList:
-                            self.copyList.append(temp_array)
-                        if self.tree.currentItem().item not in self.checkedList:
-                            self.checkedList.append(self.tree.currentItem().item)
+                        if temp_array not in self.copy_list:
+                            self.copy_list.append(temp_array)
+                        if self.tree.currentItem().item not in self.checked_list:
+                            self.checked_list.append(self.tree.currentItem().item)
                     else:
-                        if temp_array in self.copyList:
-                            self.copyList.remove(temp_array)
-                        if self.tree.currentItem().item in self.checkedList:
-                            self.checkedList.remove(self.tree.currentItem().item)
+                        if temp_array in self.copy_list:
+                            self.copy_list.remove(temp_array)
+                        if self.tree.currentItem().item in self.checked_list:
+                            self.checked_list.remove(self.tree.currentItem().item)
 
-                # ENABLE GET CPIO IF USER HAS SOMETHING TO COPY
-                if len(self.copyList) != 0:
-                    self.get_cpio.setDisabled(False)
+                # ENABLE GET SHARE FILE IF USER HAS SOMETHING TO COPY
+                if len(self.copy_list) != 0:
+                    self.get_share.setDisabled(False)
                 else:
-                    self.get_cpio.setDisabled(True)
+                    self.get_share.setDisabled(True)
 
     def make_manage_tree(self):
         """ 
@@ -515,13 +480,13 @@ class QShare(QWidget):
         hbox_controls.addWidget(info)
 
         # ADD UPDATE BUTTON W/ ICON
-        self.get_cpio.setStyleSheet("QPushButton { border:none};")
-        self.get_cpio.setIcon(QIcon(QPixmap(os.path.join(BASE_PATH, ICON_GET))))
-        self.get_cpio.setIconSize(QtCore.QSize(24, 24))
-        self.get_cpio.setDisabled(True)
-        self.get_cpio.released.connect(self.qShareObject.get_packet_data)
+        self.get_share.setStyleSheet("QPushButton { border:none};")
+        self.get_share.setIcon(QIcon(QPixmap(QuickShareConfig.icon_get)))
+        self.get_share.setIconSize(QtCore.QSize(24, 24))
+        self.get_share.setDisabled(True)
+        self.get_share.released.connect(self.qShareObject.get_packet_data)
         hbox_controls.addStretch(1)
-        hbox_controls.addWidget(self.get_cpio)
+        hbox_controls.addWidget(self.get_share)
 
         self.hbox2_controls_frame.setLayout(hbox_controls)
         self.tab2_vbox.addWidget(self.hbox2_controls_frame)
@@ -571,31 +536,31 @@ class QShare(QWidget):
         vbox2.addLayout(hbox3)
 
         # ADD UPDATE BUTTON W/ ICON
-        self.send_cpio.setStyleSheet("QPushButton { border:none};")
-        icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_MAIL)))
-        self.send_cpio.setIcon(icon)
-        self.send_cpio.setIconSize(QtCore.QSize(24, 24))
-        self.send_cpio.setDisabled(True)
-        self.send_cpio.released.connect(self.qShareObject.send_cpio_data)
+        self.send_share.setStyleSheet("QPushButton { border:none};")
+        icon = QIcon(QPixmap(QuickShareConfig.icon_mail))
+        self.send_share.setIcon(icon)
+        self.send_share.setIconSize(QtCore.QSize(24, 24))
+        self.send_share.setDisabled(True)
+        self.send_share.released.connect(self.qShareObject.send_share_data)
         hbox_controls.addStretch(1)
-        hbox_controls.addWidget(self.send_cpio)
+        hbox_controls.addWidget(self.send_share)
 
         self.hbox_controls_frame.setLayout(hbox_controls)
         self.tab1_vbox.addWidget(self.hbox_controls_frame)
 
-    def make_cpio_table(self):
-        """ GET A LIST OF /TMP/ CPIO FILES, ADD TO
+    def make_share_table(self):
+        """ GET A LIST OF /TMP/ SHARE FILES, ADD TO
         WINDOW SO ARTIST CAN CHOOSE WHAT TO SEND """
-        cpio_info = QLabel("Select Copy Data To Send:")
-        cpio_info.setFont(self.font)
-        cpio_info.setPalette(self.palette_black)
-        self.tab1_vbox.addWidget(cpio_info)
-        # GET CPIO FILES
-        files = os.listdir(self.cpio_temp_dir)
+        share_info = QLabel("Select Copy Data To Send:")
+        share_info.setFont(self.font)
+        share_info.setPalette(self.palette_black)
+        self.tab1_vbox.addWidget(share_info)
+        # GET SHARE FILES
+        files = os.listdir(self.share_temp_dir)
         copy_data = []
         for the_file in files:
-            if ".cpio" in the_file:
-                copy_data.append(the_file.strip(".cpio"))
+            if QuickShareConfig.share_type in the_file:
+                copy_data.append(the_file.strip(QuickShareConfig.share_type))
 
         for i, info in enumerate(copy_data):
             # FRAME TO HOLD CONTROLS HBOX
@@ -606,23 +571,23 @@ class QShare(QWidget):
             hbox_controls = QHBoxLayout()
 
             # ADD UPDATE BUTTON W/ ICON
-            cpio_update = QPushButton("", self)
-            cpio_update.setStyleSheet("QPushButton { border:none};")
-            icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_MINUS)))
-            cpio_update.setIcon(icon)
-            cpio_update.setIconSize(QtCore.QSize(16, 16))
-            cpio_update.pressState = 0
-            cpio_update.container = hbox_controls_frame
-            cpio_update.selfItem = cpio_update
-            cpio_update.released.connect(self.qShareObject.add_cpio_data)
-            hbox_controls.addWidget(cpio_update)
+            share_update = QPushButton("", self)
+            share_update.setStyleSheet("QPushButton { border:none};")
+            icon = QIcon(QPixmap(QuickShareConfig.icon_minus))
+            share_update.setIcon(icon)
+            share_update.setIconSize(QtCore.QSize(16, 16))
+            share_update.pressState = 0
+            share_update.container = hbox_controls_frame
+            share_update.selfItem = share_update
+            share_update.released.connect(self.qShareObject.add_share_data)
+            hbox_controls.addWidget(share_update)
 
-            # CPIO TEXT
-            cpio_text = QLabel(info)
-            cpio_text.setStyleSheet("QWidget { color: rgb(25, 25, 25) }")
-            cpio_text.setFont(self.font)
-            cpio_update.itemToSend = info
-            hbox_controls.addWidget(cpio_text)
+            # SHARE TEXT
+            share_text = QLabel(info)
+            share_text.setStyleSheet("QWidget { color: rgb(25, 25, 25) }")
+            share_text.setFont(self.font)
+            share_update.itemToSend = info
+            hbox_controls.addWidget(share_text)
 
             # ADD STRETCH TO PUSH UPDATE BUTTON TO RIGHT
             hbox_controls.addStretch(1)
@@ -637,8 +602,8 @@ class QShare(QWidget):
             line.selfItem = line
             line.setMinimumWidth(325)
             line.setHidden(True)
-            cpio_update.info = info
-            cpio_update.line = line
+            share_update.info = info
+            share_update.line = line
             hbox_controls.addWidget(line)
 
             hbox_controls_frame.setLayout(hbox_controls)
@@ -650,8 +615,8 @@ class QShare(QWidget):
         refresh the manage tree
         """
         self.tree.clear()
-        self.received_cpio_list = []
-        self.baseFolders = []
+        self.received_share_list = []
+        self.base_folders = []
         self.get_available_packets()
         self.set_tree()
 
@@ -659,15 +624,15 @@ class QShare(QWidget):
         """ 
         REMOVE USERS FROM SEND LIST 
         """
-        self.sendList.remove(self.sender().text)
+        self.send_list.remove(self.sender().text)
         self.sender().label.close()
         self.sender().close()
         self.userBox.removeWidget(self.sender().parent)
         self.sender().parent.setParent(None)
 
-    def send_cpio_data(self):
+    def send_share_data(self):
         """ 
-        Send cpio Data to users in list 
+        Send share Data to users in list
         """
         # CHECK  TO SEE IF USER CHANGED THE NAME OR PUT A PACKET NAME
         if self.name_edit.text() == "IDENTIFYING NAME" or not self.name_edit.text():
@@ -696,14 +661,14 @@ class QShare(QWidget):
         parts = localtime.split("_")
         send_time = "{0}_{1}_{2}".format(parts[0], parts[1], parts[2])
         packet_name = str(self.name_edit.text().replace(".", "_").replace(" ", "_"))
-        # SEND THE CPIO DATA TO THE CURRENT USER(S)
-        if self.sendList and self.cpioList:
-            if len(self.sendList) > 0:
-                for user in self.sendList:
-                    if os.path.isdir(os.path.join(SHARE_BASE, str(user))):
+        # SEND THE SHARE DATA TO THE CURRENT USER(S)
+        if self.send_list and self.share_list:
+            if len(self.send_list) > 0:
+                for user in self.send_list:
+                    if os.path.isdir(os.path.join(QuickShareConfig.shared_temp, str(user))):
 
-                        path = "{0}{1}{2}_{3}".format(os.path.join(SHARE_BASE, str(user), 'houdiniCpioData',
-                                                                   self.cpioSender), os.sep, send_time, packet_name)
+                        path = "{0}{1}{2}_{3}".format(os.path.join(QuickShareConfig.shared_temp, str(user), 'quickshare_data',
+                                                                   self.share_sender), os.sep, send_time, packet_name)
                         file_path = "{0}{1}Notes.txt".format(path, os.sep)
 
                         if not os.path.isdir(path):
@@ -713,13 +678,16 @@ class QShare(QWidget):
                         packet_note = "Packet:\n{0}\n\n".format(str(self.packet_note.text()))
                         f.write(packet_note)
 
-                        for cpio in self.cpioList:
-                            if cpio.line.text():
-                                note = "{0}cpio:\n{1}\n\n".format(cpio.itemToSend, str(cpio.line.text()))
+                        for share_item in self.share_list:
+                            if share_item.line.text():
+                                note = "{0}{2}:\n{1}\n\n".format(share_item.itemToSend, str(share_item.line.text()),
+                                                                 QuickShareConfig.share_type.replace(".", ""))
                                 f.write(note)
 
-                            source = "{1}{0}{2}.cpio".format(os.sep, self.cpio_temp_dir, str(cpio.itemToSend))
-                            destination = "{1}{0}{2}.cpio".format(os.sep, path, str(cpio.itemToSend))
+                            source = "{1}{0}{2}{3}".format(os.sep, self.share_temp_dir, str(share_item.itemToSend),
+                                                           QuickShareConfig.share_type)
+                            destination = "{1}{0}{2}{3}".format(os.sep, path, str(share_item.itemToSend),
+                                                                QuickShareConfig.share_type)
                             print("\nCOPIED: {0} to: \n\t{1}".format(source, destination))
 
                             shutil.copyfile(source, destination)
@@ -736,12 +704,12 @@ class QShare(QWidget):
         """
         set the contents of the receive tree
         """
-        for topLevelFolder in self.baseFolders:
+        for topLevelFolder in self.base_folders:
             # MAKE A TOP LEVEL ITEM FOR EACH USER THAT HAS SENT DATA
             top_level = QTreeWidgetItem()
-            icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_PERSON)))
+            icon = QIcon(QPixmap(QuickShareConfig.icon_person))
             top_level.setIcon(0, icon)
-            icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_TRASH)))
+            icon = QIcon(QPixmap(QuickShareConfig.icon_trash))
             top_level.setIcon(1, icon)
             top_level.extra_data = False
             top_level.setFirstColumnSpanned(True)
@@ -752,17 +720,17 @@ class QShare(QWidget):
             top_level.allowChecking = False
             top_level.userCheckState = 0
             # WE FILL IN THE TREE HERE
-            for folder in self.received_cpio_list:
+            for folder in self.received_share_list:
                 if topLevelFolder in folder['topLevel']:
                     sub_folder = QTreeWidgetItem(top_level, 0)
                     sub_folder.allowChecking = True
                     sub_folder.userCheckState = 0
                     sub_folder.setText(0, folder['folder'])
-                    icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_COLLECTION)))
+                    icon = QIcon(QPixmap(QuickShareConfig.icon_collection))
                     sub_folder.setIcon(0, icon)
-                    icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_TRASH)))
+                    icon = QIcon(QPixmap(QuickShareConfig.icon_trash))
                     sub_folder.setIcon(1, icon)
-                    icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_BULB)))
+                    icon = QIcon(QPixmap(QuickShareConfig.icon_bulb))
                     sub_folder.setIcon(2, icon)
                     sub_folder.isSubFolder = True
                     sub_folder.isItem = False
@@ -770,12 +738,12 @@ class QShare(QWidget):
                     sub_folder.childrenItems = []
                     sub_folder.setFont(0, self.font)
                     for cur_file in folder['files']:
-                        if ".cpio" in cur_file:
+                        if QuickShareConfig.share_type in cur_file:
                             sub_folder_item = QTreeWidgetItem(0)
                             sub_folder_item.setText(0, cur_file)
                             sub_folder_item.allowChecking = True
                             sub_folder_item.userCheckState = 0
-                            icon = QIcon(QPixmap(os.path.join(BASE_PATH, ICON_TOOL)))
+                            icon = QIcon(QPixmap(QuickShareConfig.icon_tool))
                             sub_folder_item.setIcon(0, icon)
                             sub_folder_item.isSubFolder = False
                             sub_folder_item.isItem = True
