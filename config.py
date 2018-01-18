@@ -91,3 +91,7 @@ class QuickShareConfig(object):
     # QuickShare COULD EASILY BE MODIFIED TO WORK WITH OTHER 3D APPS THAT
     # STORE THEIR COPY PASTE MEMORY TO DISK. (like Maya, or Nuke)
     share_type = ".cpio"
+
+    # CONFIGURE CHARACTERS WE WILL CONSIDER INVALID FOR USE
+    invalid_characters = ["*", "#", "!", "%", "&", "^", "(", ")", "@", "$", "~", ",", ".", ";", "/", "{", "}", "[", "]",
+                          "|", "\\", ":", "\\t", "\\n", "?", "<", ">"]

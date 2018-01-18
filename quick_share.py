@@ -26,7 +26,6 @@ import time
 
 # INTERNAL
 from config import QuickShareConfig
-from data_types.constants.constant_characters import INVALID_CHARACTERS
 
 # EXTERNAL
 from hutil.Qt import QtCore
@@ -649,7 +648,7 @@ class QuickShare(QWidget):
             return False
 
         # MAKE SURE USER IS NOT TRYING TO SEND AN INVALID CHARACTER
-        for item in INVALID_CHARACTERS:
+        for item in QuickShareConfig.invalid_characters:
             if item in self.name_edit.text():
                 title = "INVALID NAME ENTRY"
                 message = "PACKET NAME APPEARS TO HAVE AN INVALID CHARACTER IN IT'S NAME"
@@ -667,8 +666,9 @@ class QuickShare(QWidget):
                 for user in self.send_list:
                     if os.path.isdir(os.path.join(QuickShareConfig.shared_temp, str(user))):
 
-                        path = "{0}{1}{2}_{3}".format(os.path.join(QuickShareConfig.shared_temp, str(user), 'quickshare_data',
-                                                                   self.share_sender), os.sep, send_time, packet_name)
+                        path = "{0}{1}{2}_{3}".format(os.path.join(QuickShareConfig.shared_temp, str(user),
+                                                                   'quickshare_data', self.share_sender), os.sep,
+                                                      send_time, packet_name)
                         file_path = "{0}{1}Notes.txt".format(path, os.sep)
 
                         if not os.path.isdir(path):
