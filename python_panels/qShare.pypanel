@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pythonPanelDocument>
+  <interface name="q_share" label="Quick Share" icon="MISC_python">
+    <script><![CDATA[#############################################
+import quick_share as q_share
+reload(q_share)
+
+def createInterface():
+    return q_share.show_python_panel()
+]]></script>
+    <includeInToolbarMenu menu_position="105" create_separator="false"/>
+    <help><![CDATA[]]></help>
+  </interface>
+</pythonPanelDocument>
