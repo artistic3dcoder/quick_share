@@ -57,6 +57,9 @@ your configured scripts dir.
            quick_share.show() </pre>
 
 #### Opening **QuickShare** command line.
+If attempting to use **QuickShare** command line insure that you have:
+1. Python installed. Ideally this is through a Conda env.
+2. PySide2 installed. This can be done using pip.
 * To open **QuickShare** via a command line:
     1. Open a shell
     2. Navigate to the <code>**scripts/python/quick_share**</code> directory.
